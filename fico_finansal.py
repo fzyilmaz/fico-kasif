@@ -69,8 +69,10 @@ OTOMASYON = 0.80
 uzman_saatlik = (1_800_000 * YUKUMLULUK) / 2_080
 bekleyen_saatlik = (1_400_000 * YUKUMLULUK) / 2_080
 
-v_uzman = SORGU_YIL * 6 * OTOMASYON * uzman_saatlik
-v_bekleyen = SORGU_YIL * 16 * OTOMASYON * bekleyen_saatlik
+# 3 uzman × %40 zamanı compliance = 2.496 saat/yıl → %80 otomasyonla kurtarılan
+v_uzman = 3 * 2080 * 0.40 * OTOMASYON * uzman_saatlik
+# 120 kullanıcı × 5.000/120 sorgu × 4 saat bloke × %80 otomasyon
+v_bekleyen = 5000 * 4 * OTOMASYON * bekleyen_saatlik
 v_bddk_para_cezasi = 2_100_000
 v_itibar = 1_300_000
 v_denetim = 660_000
@@ -647,9 +649,9 @@ def sekme_goster(sekme):
                 kart("2 Yıllık NPV @ %45", tl(npv),
                      "Çeyreklik %9,67 iskonto", vurgu=True,
                      renk=RENK["yesil"] if npv >= 0 else RENK["kirmizi"]),
-                kart("İRR (Yıllık)", f"%{irr_yillik * 100:.1f}",
-                     f"Eşik: %45 TLREF",
-                     renk=RENK["yesil"] if irr_yillik > nominal_oran else RENK["kirmizi"]),
+                kart("ROI Çarpanı", f"×{round(v_toplam*2/yr1_toplam,1)}",
+                     "2 yıllık değer / toplam yatırım",
+                     renk=RENK["yesil"] if v_toplam > yr1_toplam else RENK["kirmizi"]),
                 kart("Basit Geri Ödeme", f"Ay {geri_odeme_ay}" if geri_odeme_ay else "> 24 Ay",
                      "İskontosuz başabaş"),
                 kart("Net Yıllık Fayda", tl(net_yillik),
