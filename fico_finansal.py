@@ -18,7 +18,7 @@ RENK = {
 }
 
 # ── TEMEL VARSAYIMLAR (baz senaryo) ─────────────────────────
-FX = 44.5  # TL/USD (Nisan 2026)
+FX = 45  # TL/USD (Nisan 2026)
 
 # Maliyet tarafı
 MAAS = {
@@ -34,8 +34,7 @@ personel_yr1 = sum(MAAS.values()) * YUKUMLULUK
 bakim_muhendis = MAAS["backend"] * YUKUMLULUK  # Yıl 2+
 
 CAPEX = {
-    "BDDK Güvenlik Denetimi": 264_000,
-    "Azure AI Search S2 Kurulum": 32_377,
+    "Azure AI Search S2 Kurulum": 43600,
     "Döküman Gömme (50K sayfa)": 56,
 }
 capex_toplam = sum(CAPEX.values())
@@ -365,10 +364,11 @@ def sekme_goster(sekme):
                     bolum_basligi("CAPEX Dağılımı"),
                     dcc.Graph(figure=capex_fig, config={"displayModeBar": False}),
                     aciklama_kutusu(
-                        "En büyük CAPEX kalemi BDDK güvenlik denetimi — "
-                        "yapay zeka sistemleri için zorunlu. "
-                        "Veri temizleme ve anonimleştirme geliştirme ekibi tarafından yapılıyor, "
-                        "ayrı bir hukuki maliyet yok."
+                        "CAPEX son derece düşük — Azure Search kurulum 2 aylık setup maliyeti, "
+                        "döküman gömme neredeyse sıfır. "
+                        "⚠ Risk notu: BDDK yapay zeka sistemleri için henüz zorunlu dış denetim "
+                        "gerektirmiyor ancak düzenleme yakında gelebilir. "
+                        "Gerçekleşirse ~₺250-300K ek CAPEX doğabilir — risk kaydına alındı."
                     ),
                 ], style={"flex": "1"}),
                 html.Div([
