@@ -6,15 +6,15 @@ import numpy as np
 
 # ── RENK PALETİ ─────────────────────────────────────────────
 RENK = {
-    "bg": "#0f0f0e",
-    "bg2": "#161614",
-    "bg3": "#1e1e1b",
-    "border": "rgba(255,255,255,0.08)",
+    "bg": "#1a2e1a",
+    "bg2": "#213621",
+    "bg3": "#2a422a",
+    "border": "rgba(255,255,255,0.1)",
     "accent": "#c8a96e",
-    "yesil": "#1D9E75",
+    "yesil": "#5db87a",
     "kirmizi": "#c47a6a",
-    "metin": "#e8e4dc",
-    "soluk": "#8a8578",
+    "metin": "#f0ead8",
+    "soluk": "#9aab8a",
 }
 
 # ── TEMEL VARSAYIMLAR (baz senaryo) ─────────────────────────
@@ -285,12 +285,12 @@ def sekme_goster(sekme):
             labels=list(CAPEX.keys()),
             values=list(CAPEX.values()),
             hole=0.55,
-            marker=dict(colors=["#c8a96e", "#1D9E75", "#7eb89a", "#8a8578"]),
+            marker=dict(colors=["#c8a96e", "#5db87a", "#9aab8a", "#2a422a"]),
             textinfo="label+percent",
             textfont=dict(color=RENK["metin"], size=11),
         ))
         capex_fig.update_layout(
-            paper_bgcolor=RENK["bg2"], plot_bgcolor=RENK["bg2"],
+            paper_bgcolor="#213621", plot_bgcolor="#213621",
             font=dict(color=RENK["metin"]),
             showlegend=False, margin=dict(t=20, b=20, l=20, r=20),
             height=260,
@@ -312,9 +312,9 @@ def sekme_goster(sekme):
                opex_yillik, bakim_muhendis, yr2_yillik_maliyet],
             measure=waterfall_measure,
             connector=dict(line=dict(color=RENK["border"], width=1)),
-            increasing=dict(marker=dict(color=RENK["kirmizi"])),
-            decreasing=dict(marker=dict(color=RENK["yesil"])),
-            totals=dict(marker=dict(color=RENK["accent"])),
+            increasing=dict(marker=dict(color="#c47a6a")),
+            decreasing=dict(marker=dict(color="#5db87a")),
+            totals=dict(marker=dict(color="#c8a96e")),
             text=[tl(x) if x else "" for x in [
                 personel_yr1, capex_toplam, opex_yillik, yr1_toplam,
                 opex_yillik, bakim_muhendis, yr2_yillik_maliyet]],
@@ -322,7 +322,7 @@ def sekme_goster(sekme):
             textfont=dict(size=10, color=RENK["metin"]),
         ))
         wf_fig.update_layout(
-            paper_bgcolor=RENK["bg2"], plot_bgcolor=RENK["bg2"],
+            paper_bgcolor="#213621", plot_bgcolor="#213621",
             font=dict(color=RENK["metin"]),
             xaxis=dict(gridcolor=RENK["border"]),
             yaxis=dict(gridcolor=RENK["border"], tickformat=",.0f",
@@ -474,7 +474,7 @@ def sekme_goster(sekme):
             textfont=dict(size=11, color=RENK["metin"]),
         ))
         roi_fig.update_layout(
-            paper_bgcolor=RENK["bg2"], plot_bgcolor=RENK["bg2"],
+            paper_bgcolor="#213621", plot_bgcolor="#213621",
             font=dict(color=RENK["metin"]),
             xaxis=dict(gridcolor=RENK["border"], tickformat=",.0f",
                        tickprefix="₺", title=""),
@@ -595,24 +595,24 @@ def sekme_goster(sekme):
         geri_odeme_fig = go.Figure()
         geri_odeme_fig.add_trace(go.Bar(
             x=ceyrekler, y=maliyet_cf, name="Maliyet Çıkışı",
-            marker_color="rgba(196,122,106,0.4)",
-            marker_line=dict(color=RENK["kirmizi"], width=0.5),
+            marker_color="rgba(196,122,106,0.5)",
+            marker_line=dict(color="#c47a6a", width=0.5),
         ))
         geri_odeme_fig.add_trace(go.Bar(
             x=ceyrekler, y=deger_cf, name="Değer Girişi",
-            marker_color="rgba(29,158,117,0.3)",
-            marker_line=dict(color=RENK["yesil"], width=0.5),
+            marker_color="rgba(93,184,122,0.3)",
+            marker_line=dict(color="#5db87a", width=0.5),
         ))
         geri_odeme_fig.add_trace(go.Scatter(
             x=ceyrekler, y=kumulatif_cf, name="Kümülatif Net CF",
-            line=dict(color=RENK["yesil"], width=2.5),
+            line=dict(color="#5db87a", width=2.5),
             mode="lines+markers",
-            marker=dict(size=7, color=RENK["yesil"]),
+            marker=dict(size=7, color="#5db87a"),
         ))
         geri_odeme_fig.add_hline(y=0, line_dash="dash",
                                   line_color="rgba(255,255,255,0.25)", line_width=1)
         geri_odeme_fig.update_layout(
-            paper_bgcolor=RENK["bg2"], plot_bgcolor=RENK["bg2"],
+            paper_bgcolor="#213621", plot_bgcolor="#213621",
             font=dict(color=RENK["metin"]),
             xaxis=dict(gridcolor=RENK["border"]),
             yaxis=dict(gridcolor=RENK["border"], ticksuffix="M₺"),
@@ -634,7 +634,7 @@ def sekme_goster(sekme):
         ))
         duy_fig.add_hline(y=0, line_color="rgba(255,255,255,0.3)", line_width=1)
         duy_fig.update_layout(
-            paper_bgcolor=RENK["bg2"], plot_bgcolor=RENK["bg2"],
+            paper_bgcolor="#213621", plot_bgcolor="#213621",
             font=dict(color=RENK["metin"]),
             xaxis=dict(gridcolor="rgba(0,0,0,0)"),
             yaxis=dict(gridcolor=RENK["border"], ticksuffix="M₺"),
