@@ -349,7 +349,7 @@ def sekme_goster(sekme):
             # Özet kartlar
             html.Div([
                 kart("CAPEX — Tek Seferlik", tl(capex_toplam),
-                     "İnşaat + hukuki + denetim", vurgu=True),
+                     "Kurulum + döküman gömme", vurgu=True),
                 kart("Personel — Yıl 1", tl(personel_yr1),
                      "4 kişi × 12 ay, gerçek maliyet"),
                 kart("OPEX — Yıllık Altyapı", tl(opex_yillik),
@@ -414,17 +414,30 @@ def sekme_goster(sekme):
                     ]
                 ] + [
                     html.Tr([
-                        html.Td("TOPLAM", style={"fontWeight": "500"}),
+                        html.Td("TOPLAM — Yıl 1", style={"fontWeight": "500"}),
                         html.Td(tl(sum(MAAS.values())), style={"textAlign": "right",
                                 "fontFamily": "monospace"}),
                         html.Td(""),
                         html.Td(tl(personel_yr1), style={"textAlign": "right",
                                 "fontFamily": "monospace", "color": RENK["yesil"]}),
-                        html.Td(""),
+                        html.Td("12 ay"),
                         html.Td(tl(personel_yr1), style={"textAlign": "right",
                                 "fontFamily": "monospace", "fontWeight": "500",
                                 "color": RENK["yesil"]}),
-                    ], style={"background": RENK["bg2"], "fontSize": "13px"})
+                    ], style={"background": RENK["bg2"], "fontSize": "13px"}),
+                    html.Tr([
+                        html.Td("Bakım Mühendisi — Yıl 2+", style={"fontWeight": "500",
+                                "color": RENK["accent"]}),
+                        html.Td(tl(MAAS["backend"]), style={"textAlign": "right",
+                                "fontFamily": "monospace", "color": RENK["soluk"]}),
+                        html.Td(""),
+                        html.Td(tl(bakim_muhendis), style={"textAlign": "right",
+                                "fontFamily": "monospace", "color": RENK["accent"]}),
+                        html.Td("Süresiz", style={"color": RENK["accent"]}),
+                        html.Td(tl(bakim_muhendis) + "/yıl", style={"textAlign": "right",
+                                "fontFamily": "monospace", "fontWeight": "500",
+                                "color": RENK["accent"]}),
+                    ], style={"background": RENK["bg3"], "fontSize": "13px"}),
                 ]),
             ], style={"width": "100%", "borderCollapse": "collapse",
                       "fontSize": "13px", "marginBottom": "16px"}),
