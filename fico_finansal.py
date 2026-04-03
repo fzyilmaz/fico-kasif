@@ -34,8 +34,7 @@ personel_yr1 = sum(MAAS.values()) * YUKUMLULUK
 bakim_muhendis = MAAS["backend"] * YUKUMLULUK  # Yıl 2+
 
 CAPEX = {
-    "Hukuki & Şeriat Veri İzni": 660_000,
-    "BDDK Güvenlik Denetimi": 396_000,
+    "BDDK Güvenlik Denetimi": 264_000,
     "Azure AI Search S2 Kurulum": 32_377,
     "Döküman Gömme (50K sayfa)": 56,
 }
@@ -366,9 +365,10 @@ def sekme_goster(sekme):
                     bolum_basligi("CAPEX Dağılımı"),
                     dcc.Graph(figure=capex_fig, config={"displayModeBar": False}),
                     aciklama_kutusu(
-                        "Hukuki & Şeriat veri izni en büyük CAPEX kalemi — "
-                        "AAOIFI, BDDK ve KT'nin 35 yıllık fetva arşivini yapay "
-                        "zeka kullanımı için temizlemek için dış hukuk bürosu gerekli."
+                        "En büyük CAPEX kalemi BDDK güvenlik denetimi — "
+                        "yapay zeka sistemleri için zorunlu. "
+                        "Veri temizleme ve anonimleştirme geliştirme ekibi tarafından yapılıyor, "
+                        "ayrı bir hukuki maliyet yok."
                     ),
                 ], style={"flex": "1"}),
                 html.Div([
@@ -481,7 +481,7 @@ def sekme_goster(sekme):
                            "color": RENK["metin"], "marginBottom": "8px"}),
             html.P("Üç değer kovası: FTE zaman tasarrufu (sert tasarruf), risk azaltma "
                    "(beklenen değer), gelir etkisi (muhafazakâr tahmin). "
-                   "KT'nin 2021–2025 arası 6.000 sorgu kaydına dayanmaktadır.",
+                   "KT'nin 2021–2025 arası 6.000 sorgu kaydına ve Danışma Komitesi kararlarına dayanmaktadır.",
                    style={"color": RENK["soluk"], "fontSize": "14px",
                           "marginBottom": "28px"}),
 
