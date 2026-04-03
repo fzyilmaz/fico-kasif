@@ -62,20 +62,39 @@ yr2_yillik_maliyet = opex_yillik + bakim_muhendis
 yr1_toplam = personel_yr1 + capex_toplam + opex_yillik
 
 # Değer tarafı
-SORGU_YIL = 5_000
 OTOMASYON = 0.80
-uzman_saatlik = (1_800_000 * YUKUMLULUK) / 2_080
-bekleyen_saatlik = (1_400_000 * YUKUMLULUK) / 2_080
 
-# 3 uzman × %40 zamanı compliance = 2.496 saat/yıl → %80 otomasyonla kurtarılan
-v_uzman = 3 * 2080 * 0.40 * OTOMASYON * uzman_saatlik
-# 120 kullanıcı × 5.000/120 sorgu × 4 saat bloke × %80 otomasyon
-v_bekleyen = 5000 * 4 * OTOMASYON * bekleyen_saatlik
+# Saatlik maliyetler (brüt × 1.45 işveren yükü ÷ 2.080 çalışma saati)
+uyum_saatlik = (1_800_000 * YUKUMLULUK) / 2_080   # ₺1.255/saat
+pm_saatlik = (1_400_000 * YUKUMLULUK) / 2_080      # ₺976/saat
+sube_saatlik = (1_500_000 * YUKUMLULUK) / 2_080    # ₺1.046/saat
+
+# DEĞER 1: Uyum ekibi zaman tasarrufu
+# KT uyum ekibi ~8 kişi, zamanının %30u rutin sorgulara gidiyor → %80 otomasyonla kurtarılıyor
+v_uyum = 8 * 2_080 * 0.30 * OTOMASYON * uyum_saatlik
+
+# DEĞER 2: Ürün ekipleri bekleme kaybı
+# 12 PM × ayda 4 sorgu × 12 ay × her sorgu 4 saat verimlilik kaybı (2 gün bekleme)
+v_pm = 12 * 4 * 12 * 4 * OTOMASYON * pm_saatlik
+
+# DEĞER 3: Şube — kaçırılan işlem marjı
+# 400 şube × ayda 1 sorgu = 4.800 sorgu/yıl
+# %20i büyük şubede (960 sorgu) × %5 düşme oranı = 48 kayıp işlem
+# Ortalama kurumsal finansman ₺2M × %5 banka marjı = ₺100K/işlem
+v_sube = 48 * 100_000
+
+# DEĞER 4: Ürün lansmanı hızlanması
+# 5 ürün/yıl, gecikme 4 haftadan 1 haftaya iniyor = 15 iş günü kazanıldı
+# İlk ay 300 müşteri × ₺2.000 marj = ₺600K/ay = ₺20K/gün
+v_urun = 5 * 15 * 20_000
+
+# DEĞER 5: Risk azaltma (beklenen değer)
+# BDDK: ₺50M maruz × 4.2pp olasılık düşüşü
+# İtibar: ₺50M maliyet × 2.6pp olasılık düşüşü
 v_bddk_para_cezasi = 2_100_000
 v_itibar = 1_300_000
-v_denetim = 660_000
-v_urun_lasman = 5 * 45 * 80_000 * 0.70
-v_toplam = v_uzman + v_bekleyen + v_bddk_para_cezasi + v_itibar + v_denetim + v_urun_lasman
+
+v_toplam = v_uyum + v_pm + v_sube + v_urun + v_bddk_para_cezasi + v_itibar
 net_yillik = v_toplam - yr2_yillik_maliyet
 
 # ── İSKONTO ORANI TÜRETİMİ (Fisher) ────────────────────────
@@ -453,12 +472,12 @@ def sekme_goster(sekme):
     # ── SAYFA 2: DEĞER / ROI ─────────────────────────────────
     elif sekme == "roi":
         deger_kalemleri = {
-            "Uzman Zaman Tasarrufu": v_uzman,
-            "Bekleyen Taraf Verimliliği": v_bekleyen,
-            "BDDK Para Cezası Riski Azaltma": v_bddk_para_cezasi,
+            "Uyum Ekibi Zaman Tasarrufu": v_uyum,
+            "Ürün Ekipleri Bekleme Kaybı": v_pm,
+            "Şube — Kaçırılan İşlem Marjı": v_sube,
+            "Ürün Lansmanı Hızlanması": v_urun,
+            "BDDK Para Cezası Riski": v_bddk_para_cezasi,
             "İtibar Hasarı Önleme": v_itibar,
-            "Denetim Maliyeti Azaltma": v_denetim,
-            "Ürün Lansmanı Hızlanması": v_urun_lasman,
         }
 
         roi_fig = go.Figure(go.Bar(
@@ -501,12 +520,12 @@ def sekme_goster(sekme):
             html.Div([
                 kart("Yıllık Toplam Değer", tl(v_toplam),
                      "3 kova birlikte", vurgu=True, renk=RENK["yesil"]),
-                kart("FTE Tasarrufu", tl(v_uzman + v_bekleyen),
-                     "İki taraf da — sert tasarruf"),
-                kart("Risk Azaltma", tl(v_bddk_para_cezasi + v_itibar + v_denetim),
+                kart("Personel Verimliliği", tl(v_uyum + v_pm),
+                     "Uyum ekibi + ürün ekipleri"),
+                kart("Risk Azaltma", tl(v_bddk_para_cezasi + v_itibar),
                      "Beklenen değer bazında"),
-                kart("Gelir Etkisi", tl(v_urun_lasman),
-                     "Muhafazakâr tahmin"),
+                kart("Gelir Etkisi", tl(v_sube + v_urun),
+                     "Kaçırılan işlem + lansман hızı"),
             ], style={"display": "flex", "gap": "10px", "marginBottom": "28px"}),
 
             bolum_basligi("Değer Kovası Dağılımı"),
@@ -533,16 +552,26 @@ def sekme_goster(sekme):
                               "fontSize": "13px", "padding": "10px 0",
                               "verticalAlign": "top"})
                     for kalem, aciklama, deger in [
-                        ("Uzman Zaman Tasarrufu",
-                         f"5.000 sorgu/yıl × 6 saat uzman etkileşimi × %80 otomasyon oranı "
-                         f"× uzman saatlik maliyet (₺1,8M × 1,45 ÷ 2.080s = {tl(int(uzman_saatlik))}/saat)",
-                         v_uzman),
-                        ("Bekleyen Taraf Verimliliği",
-                         f"5.000 sorgu/yıl × 16 saat bloke süre × %80 otomasyon "
-                         f"× talep eden saatlik maliyet ({tl(int(bekleyen_saatlik))}/saat). "
-                         "Cevap bekleyen kişi de maliyet taşır — çoğu ROI modeli bunu atlar.",
-                         v_bekleyen),
-                        ("BDDK Para Cezası Riski Azaltma",
+                        ("Uyum Ekibi Zaman Tasarrufu",
+                         f"8 uyum uzmanı × zamanın %30u rutin sorgulara gidiyor × "
+                         f"%80 otomasyon × {tl(int(uyum_saatlik))}/saat. "
+                         "KT uyum ekibi bu sistemle stratejik vakalara odaklanabilir.",
+                         v_uyum),
+                        ("Ürün Ekipleri Bekleme Kaybı",
+                         f"12 ürün müdürü × ayda 4 sorgu × 12 ay × 4 saat verimlilik kaybı "
+                         f"(2 günlük bekleme) × %80 × {tl(int(pm_saatlik))}/saat. "
+                         "Her geciken cevap bir ürün kararını bloke ediyor.",
+                         v_pm),
+                        ("Şube — Kaçırılan İşlem Marjı",
+                         "400 şube × ayda 1 uyum sorusu = 4.800 sorgu/yıl. "
+                         "Büyük şubelerdeki %20si (960 sorgu) × %5 düşme oranı = 48 kayıp işlem. "
+                         "Ortalama kurumsal finansman ₺2M × %5 banka marjı = ₺100K/işlem.",
+                         v_sube),
+                        ("Ürün Lansmanı Hızlanması",
+                         "5 ürün/yıl, uyum onay süreci 4 haftadan 1 haftaya iniyor → 15 iş günü kazanıldı. "
+                         "İlk ay 300 müşteri × ₺2.000 marj = ₺600K/ay = ₺20K/gün × 15 gün × 5 ürün.",
+                         v_urun),
+                        ("BDDK Para Cezası Riski",
                          "₺50M ceza maruziyeti. Olay olasılığı: %5 → %0,8. "
                          "Beklenen değer azaltımı = ₺50M × 4,2 puan. "
                          "Kaynak: BoE 2023'te İslami bankayı £3,5M cezalandırdı.",
@@ -552,20 +581,11 @@ def sekme_goster(sekme):
                          "orantısız hasar verir — inanç bazlı ürün farklılaştırması erozyon. "
                          "₺50M tahmini maliyet × olasılık azaltımı 2,6 puan.",
                          v_itibar),
-                        ("Denetim Maliyeti Azaltma",
-                         "Yapılandırılmış kaynak atıflı karar izi iç/dış denetimleri "
-                         "hızlandırır. Yıllık uyum denetim maliyetinin %40 azalması.",
-                         v_denetim),
-                        ("Ürün Lansmanı Hızlanması",
-                         "5 yeni ürün/yıl ortalama 45 gün uyum onayı bekliyor. "
-                         "Günlük ürün başına gelir ₺80K. FiCo gecikmeyi %70 azaltır "
-                         "→ 31,5 gün kazanılır × ₺80K × 5 ürün.",
-                         v_urun_lasman),
                     ]
                 ] + [
                     html.Tr([
                         html.Td("TOPLAM YILLIK DEĞER", style={"fontWeight": "500"}),
-                        html.Td("B2B lisanslama ve müşteri modülü hariç — taban değer.",
+                        html.Td("Danışma Komitesi onay mekanizması korunuyor — FiCo sadece rutin sorguları otomatize ediyor.",
                                 style={"color": RENK["soluk"], "fontSize": "12px"}),
                         html.Td(tl(v_toplam), style={"textAlign": "right",
                                 "fontFamily": "monospace", "color": RENK["yesil"],
@@ -576,10 +596,10 @@ def sekme_goster(sekme):
             ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "16px"}),
 
             aciklama_kutusu(
-                "Temel içgörü: Sorgunun iki tarafı da maliyet taşır. "
-                "2–3 günlük çözüm süresi hem cevap veren uyum uzmanını hem de "
-                "bekleyen ürün yöneticisini etkiler. FiCo her ikisini de 40 saniyeye "
-                "indirerek her iki taraftaki maliyeti de ortadan kaldırır.",
+                "Temel içgörü: Değer 5 farklı kullanıcı profilinden geliyor — uyum ekibi, ürün ekipleri, "
+                "şube müdürleri, lansман hızı ve risk azaltma. "
+                "Danışma Komitesi devre dışı bırakılmıyor — rutin sorulardan arındırılarak "
+                "stratejik vakalara odaklanması sağlanıyor.",
                 RENK["yesil"]
             ),
         ])
