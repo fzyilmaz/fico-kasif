@@ -18,7 +18,7 @@ RENK = {
 }
 
 # ── TEMEL VARSAYIMLAR (baz senaryo) ─────────────────────────
-FX = 33  # TL/USD
+FX = 44.5  # TL/USD (Nisan 2026)
 
 # Maliyet tarafı
 MAAS = {
