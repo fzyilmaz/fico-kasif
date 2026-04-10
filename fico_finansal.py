@@ -254,11 +254,17 @@ def sekme_goster(sekme):
             html.P("Azure OpenAI GPT-4o + Azure AI Search S2 tabanlı RAG mimarisi. ₺45/$ kuru. Personel brüt × 1,45.",
                    style={"color":RENK["soluk"],"fontSize":"14px","marginBottom":"28px"}),
             html.Div([
-                kart("CAPEX",tl(capex_toplam),"Kurulum + döküman gömme",vurgu=True),
-                kart("Personel Yıl 1",tl(personel_yr1),"4 kişi × 12 ay"),
-                kart("OPEX Yıllık",tl(opex_yillik),"Azure + GPT-4o"),
-                kart("2 Yıllık Toplam",tl(yr1_toplam+yr2_yillik_maliyet),"Tüm kalemler"),
-            ], style={"display":"flex","gap":"10px","marginBottom":"28px"}),
+                html.Div(tablo_indir_btn("maliyet-kartlar","maliyet_ozet"),
+                         style={"display":"flex","justifyContent":"flex-end","marginBottom":"6px"}),
+                html.Div(id="maliyet-kartlar", children=[
+                    html.Div([
+                        kart("CAPEX",tl(capex_toplam),"Kurulum + döküman gömme",vurgu=True),
+                        kart("Personel Yıl 1",tl(personel_yr1),"4 kişi × 12 ay"),
+                        kart("OPEX Yıllık",tl(opex_yillik),"Azure + GPT-4o"),
+                        kart("2 Yıllık Toplam",tl(yr1_toplam+yr2_yillik_maliyet),"Tüm kalemler"),
+                    ], style={"display":"flex","gap":"10px"}),
+                ], style={"background":RENK["bg"],"padding":"12px","border":f"1px solid {RENK['border']}"}),
+            ], style={"marginBottom":"28px"}),
 
             html.Div([
                 html.Div([
@@ -341,11 +347,17 @@ def sekme_goster(sekme):
             html.P("Üç değer kovası: FTE zaman tasarrufu, risk azaltma, gelir etkisi.",
                    style={"color":RENK["soluk"],"fontSize":"14px","marginBottom":"28px"}),
             html.Div([
-                kart("Yıllık Toplam Değer",tl(v_toplam),"3 kova birlikte",vurgu=True,renk=RENK["yesil"]),
-                kart("Personel Verimliliği",tl(v_uyum+v_pm),"Uyum + ürün ekipleri"),
-                kart("Risk Azaltma",tl(v_bddk+v_itibar),"Beklenen değer bazında"),
-                kart("Gelir Etkisi",tl(v_sube+v_urun),"Kaçırılan işlem + lansman"),
-            ], style={"display":"flex","gap":"10px","marginBottom":"28px"}),
+                html.Div(tablo_indir_btn("roi-kartlar","roi_ozet"),
+                         style={"display":"flex","justifyContent":"flex-end","marginBottom":"6px"}),
+                html.Div(id="roi-kartlar", children=[
+                    html.Div([
+                        kart("Yıllık Toplam Değer",tl(v_toplam),"3 kova birlikte",vurgu=True,renk=RENK["yesil"]),
+                        kart("Personel Verimliliği",tl(v_uyum+v_pm),"Uyum + ürün ekipleri"),
+                        kart("Risk Azaltma",tl(v_bddk+v_itibar),"Beklenen değer bazında"),
+                        kart("Gelir Etkisi",tl(v_sube+v_urun),"Kaçırılan işlem + lansman"),
+                    ], style={"display":"flex","gap":"10px"}),
+                ], style={"background":RENK["bg"],"padding":"12px","border":f"1px solid {RENK['border']}"}),
+            ], style={"marginBottom":"28px"}),
 
             bolum_plain("Değer Kovası Dağılımı"),
             dcc.Graph(id="roi-grafik", figure=roi_fig,
@@ -424,14 +436,20 @@ def sekme_goster(sekme):
             html.P("Çeyreklik model. MVP Ç3, %50 benimseme Ç4, %90 Ç5+.",
                    style={"color":RENK["soluk"],"fontSize":"14px","marginBottom":"28px"}),
             html.Div([
-                kart("2Y NPV @ %45",tl(npv),"Çeyreklik %9,67",vurgu=True,
-                     renk=RENK["yesil"] if npv>=0 else RENK["kirmizi"]),
-                kart("ROI Çarpanı",f"×{round(v_toplam*2/yr1_toplam,1)}","2Y değer / yatırım",
-                     renk=RENK["yesil"] if v_toplam>yr1_toplam else RENK["kirmizi"]),
-                kart("Geri Ödeme",f"Ay {geri_odeme_ay}" if geri_odeme_ay else ">24 Ay","İskontosuz"),
-                kart("Net Yıllık",tl(net_yillik),"Yıl 2'den sabit",
-                     renk=RENK["yesil"] if net_yillik>=0 else RENK["kirmizi"]),
-            ], style={"display":"flex","gap":"10px","marginBottom":"28px"}),
+                html.Div(tablo_indir_btn("npv-kartlar","npv_ozet"),
+                         style={"display":"flex","justifyContent":"flex-end","marginBottom":"6px"}),
+                html.Div(id="npv-kartlar", children=[
+                    html.Div([
+                        kart("2Y NPV @ %45",tl(npv),"Çeyreklik %9,67",vurgu=True,
+                             renk=RENK["yesil"] if npv>=0 else RENK["kirmizi"]),
+                        kart("ROI Çarpanı",f"×{round(v_toplam*2/yr1_toplam,1)}","2Y değer / yatırım",
+                             renk=RENK["yesil"] if v_toplam>yr1_toplam else RENK["kirmizi"]),
+                        kart("Geri Ödeme",f"Ay {geri_odeme_ay}" if geri_odeme_ay else ">24 Ay","İskontosuz"),
+                        kart("Net Yıllık",tl(net_yillik),"Yıl 2'den sabit",
+                             renk=RENK["yesil"] if net_yillik>=0 else RENK["kirmizi"]),
+                    ], style={"display":"flex","gap":"10px"}),
+                ], style={"background":RENK["bg"],"padding":"12px","border":f"1px solid {RENK['border']}"}),
+            ], style={"marginBottom":"28px"}),
 
             bolum_plain("İskonto Oranı — Fisher"),
             html.Div([
