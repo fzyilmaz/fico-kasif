@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, callback
+from dash import dcc, html, Input, Output, State, callback, ALL
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
@@ -65,32 +65,14 @@ yr1_toplam = personel_yr1 + capex_toplam + opex_yillik
 OTOMASYON = 0.80
 
 # Saatlik maliyetler (brüt × 1.45 işveren yükü ÷ 2.080 çalışma saati)
-uyum_saatlik = (1_800_000 * YUKUMLULUK) / 2_080   # ₺1.255/saat
-pm_saatlik = (1_400_000 * YUKUMLULUK) / 2_080      # ₺976/saat
-sube_saatlik = (1_500_000 * YUKUMLULUK) / 2_080    # ₺1.046/saat
+uyum_saatlik = (1_800_000 * YUKUMLULUK) / 2_080
+pm_saatlik = (1_400_000 * YUKUMLULUK) / 2_080
+sube_saatlik = (1_500_000 * YUKUMLULUK) / 2_080
 
-# DEĞER 1: Uyum ekibi zaman tasarrufu
-# KT uyum ekibi ~8 kişi, zamanının %30u rutin sorgulara gidiyor → %80 otomasyonla kurtarılıyor
 v_uyum = 8 * 2_080 * 0.30 * OTOMASYON * uyum_saatlik
-
-# DEĞER 2: Ürün ekipleri bekleme kaybı
-# 12 PM × ayda 4 sorgu × 12 ay × her sorgu 4 saat verimlilik kaybı (2 gün bekleme)
 v_pm = 12 * 4 * 12 * 4 * OTOMASYON * pm_saatlik
-
-# DEĞER 3: Şube — kaçırılan işlem marjı
-# 400 şube × ayda 1 sorgu = 4.800 sorgu/yıl
-# %20i büyük şubede (960 sorgu) × %5 düşme oranı = 48 kayıp işlem
-# Ortalama kurumsal finansman ₺2M × %5 banka marjı = ₺100K/işlem
 v_sube = 48 * 100_000
-
-# DEĞER 4: Ürün lansmanı hızlanması
-# 5 ürün/yıl, gecikme 4 haftadan 1 haftaya iniyor = 15 iş günü kazanıldı
-# İlk ay 300 müşteri × ₺2.000 marj = ₺600K/ay = ₺20K/gün
 v_urun = 5 * 15 * 20_000
-
-# DEĞER 5: Risk azaltma (beklenen değer)
-# BDDK: ₺50M maruz × 4.2pp olasılık düşüşü
-# İtibar: ₺50M maliyet × 2.6pp olasılık düşüşü
 v_bddk_para_cezasi = 2_100_000
 v_itibar = 1_300_000
 
@@ -98,9 +80,9 @@ v_toplam = v_uyum + v_pm + v_sube + v_urun + v_bddk_para_cezasi + v_itibar
 net_yillik = v_toplam - yr2_yillik_maliyet
 
 # ── İSKONTO ORANI TÜRETİMİ (Fisher) ────────────────────────
-real_getiri = 0.075   # ABD 10y (~%3) + küresel ERP (~%4) + Türkiye CDS (~%1.5)
-enflasyon = 0.315     # TÜFE Şubat 2026
-nominal_oran = (1 + real_getiri) * (1 + enflasyon) - 1  # ≈ %41.4
+real_getiri = 0.075
+enflasyon = 0.315
+nominal_oran = (1 + real_getiri) * (1 + enflasyon) - 1
 ceyrek_oran = (1 + nominal_oran) ** 0.25 - 1
 
 # ── ÇEYREK NAKİT AKIŞI ──────────────────────────────────────
@@ -140,17 +122,11 @@ for i in range(8):
         "kum_npv": npv,
     })
 
-# Geri ödeme ayı
 geri_odeme_ay = None
 for i, q in enumerate(ceyreklik_nakit):
     if q["kumulatif"] >= 0:
         geri_odeme_ay = (i + 1) * 3
         break
-
-# IRR hesabı (Newton-Raphson)
-nakit_akislari = []
-for i, q in enumerate(ceyreklik_nakit):
-    nakit_akislari.append(q["net"])
 
 def irr_hesapla(nakitler, tahmin=0.1):
     r = tahmin
@@ -166,10 +142,10 @@ def irr_hesapla(nakitler, tahmin=0.1):
         r = r_yeni
     return r
 
+nakit_akislari = [q["net"] for q in ceyreklik_nakit]
 irr_ceyreklik = irr_hesapla(nakit_akislari)
 irr_yillik = (1 + irr_ceyreklik) ** 4 - 1
 
-# Duyarlılık analizi
 def duyarlilik_hesapla(deger_degisim):
     v = v_toplam * (1 + deger_degisim)
     net_v = v - yr2_yillik_maliyet
@@ -203,6 +179,33 @@ def tl(n):
     isaretli = n < 0
     s = f"₺{abs(int(round(n))):,}".replace(",", ".")
     return f"−{s}" if isaretli else s
+
+def indir_butonu(hedef_id, dosya_adi, tablo_mu=False):
+    """Grafik veya tablo için PNG indirme butonu."""
+    return html.Button(
+        "⬇ PNG",
+        **{
+            "data-target": hedef_id,
+            "data-filename": dosya_adi,
+            "data-table": "true" if tablo_mu else "false",
+        },
+        style={
+            "background": "transparent",
+            "border": f"1px solid {RENK['border']}",
+            "color": RENK["soluk"],
+            "fontFamily": "monospace",
+            "fontSize": "10px",
+            "letterSpacing": "0.08em",
+            "padding": "4px 12px",
+            "cursor": "pointer",
+            "float": "right",
+            "marginBottom": "6px",
+            "borderRadius": "1px",
+            "transition": "color 0.2s, border-color 0.2s",
+        },
+        id={"type": "indir-btn", "index": hedef_id},
+        n_clicks=0,
+    )
 
 def kart(baslik, deger, alt="", vurgu=False, renk=None):
     renk_deger = renk or RENK["metin"]
@@ -240,7 +243,13 @@ def aciklama_kutusu(metin, renk=None):
     })
 
 # ── UYGULAMA ────────────────────────────────────────────────
-app = dash.Dash(__name__, title="FiCo Kaşif — Finansal Vaka")
+app = dash.Dash(
+    __name__,
+    title="FiCo Kaşif — Finansal Vaka",
+    external_scripts=[
+        "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    ],
+)
 
 SEKME_STILI = {
     "backgroundColor": RENK["bg"],
@@ -291,7 +300,70 @@ app.layout = html.Div([
         "background": RENK["bg"], "minHeight": "100vh",
         "padding": "32px 40px", "maxWidth": "1200px", "margin": "0 auto",
     }),
+
+    # İndirme callback çıktısı (gizli)
+    html.Div(id="indir-cikti", style={"display": "none"}),
+
 ], style={"background": RENK["bg"], "color": RENK["metin"], "fontFamily": "Georgia, serif"})
+
+
+# ── İNDİRME KLİENTSİDE CALLBACK ────────────────────────────
+app.clientside_callback(
+    """
+    function(n_clicks_list) {
+        var ctx = window.dash_clientside.callback_context;
+        if (!ctx || !ctx.triggered || ctx.triggered.length === 0) {
+            return '';
+        }
+
+        var prop_id = ctx.triggered[0].prop_id;
+        var btn_id_str = prop_id.split('.')[0];
+        var btn_id;
+        try { btn_id = JSON.parse(btn_id_str); } catch(e) { return ''; }
+
+        var hedef = btn_id.index;
+        var el = document.getElementById(hedef);
+        if (!el) return '';
+
+        // data-* niteliklerini bul (buton elemanlanndan herhangi birinde)
+        var btns = document.querySelectorAll('[data-target="' + hedef + '"]');
+        var dosyaAdi = hedef;
+        var isTable = false;
+        if (btns.length > 0) {
+            dosyaAdi = btns[0].getAttribute('data-filename') || hedef;
+            isTable = btns[0].getAttribute('data-table') === 'true';
+        }
+
+        if (isTable) {
+            if (window.html2canvas) {
+                html2canvas(el, {
+                    backgroundColor: '#213621',
+                    scale: 2,
+                    useCORS: true
+                }).then(function(canvas) {
+                    var link = document.createElement('a');
+                    link.download = dosyaAdi + '.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            }
+        } else {
+            // Plotly grafiği
+            Plotly.downloadImage(el, {
+                format: 'png',
+                filename: dosyaAdi,
+                height: 500,
+                width: 1100,
+                scale: 2
+            });
+        }
+        return '';
+    }
+    """,
+    Output("indir-cikti", "children"),
+    Input({"type": "indir-btn", "index": ALL}, "n_clicks"),
+    prevent_initial_call=True,
+)
 
 
 @callback(Output("icerik", "children"), Input("sekmeler", "value"))
@@ -299,7 +371,6 @@ def sekme_goster(sekme):
 
     # ── SAYFA 1: MALİYET MODELİ ─────────────────────────────
     if sekme == "maliyet":
-        # CAPEX pasta grafik
         capex_fig = go.Figure(go.Pie(
             labels=list(CAPEX.keys()),
             values=list(CAPEX.values()),
@@ -318,7 +389,6 @@ def sekme_goster(sekme):
                              showarrow=False)],
         )
 
-        # Maliyet waterfall
         waterfall_etiketler = ["Personel Yr1", "CAPEX", "OPEX Yr1", "Toplam Yr1",
                                 "OPEX Yr2+", "Bakım Müh.", "Yıllık Devam"]
         waterfall_degerler = [personel_yr1, capex_toplam, opex_yillik,
@@ -365,7 +435,6 @@ def sekme_goster(sekme):
                    style={"color": RENK["soluk"], "fontSize": "14px",
                           "marginBottom": "28px"}),
 
-            # Özet kartlar
             html.Div([
                 kart("CAPEX — Tek Seferlik", tl(capex_toplam),
                      "Kurulum + döküman gömme", vurgu=True),
@@ -377,11 +446,12 @@ def sekme_goster(sekme):
                      "CAPEX + 2 yıl OPEX + personel"),
             ], style={"display": "flex", "gap": "10px", "marginBottom": "28px"}),
 
-            # İki sütun
             html.Div([
                 html.Div([
                     bolum_basligi("CAPEX Dağılımı"),
-                    dcc.Graph(figure=capex_fig, config={"displayModeBar": False}),
+                    indir_butonu("capex-grafik", "capex_dagilimi"),
+                    dcc.Graph(id="capex-grafik", figure=capex_fig,
+                              config={"displayModeBar": False}),
                     aciklama_kutusu(
                         "CAPEX son derece düşük — Azure Search kurulum 2 aylık setup maliyeti, "
                         "döküman gömme neredeyse sıfır. "
@@ -392,7 +462,9 @@ def sekme_goster(sekme):
                 ], style={"flex": "1"}),
                 html.Div([
                     bolum_basligi("Maliyet Şelalesi"),
-                    dcc.Graph(figure=wf_fig, config={"displayModeBar": False}),
+                    indir_butonu("waterfall-grafik", "maliyet_selalesi"),
+                    dcc.Graph(id="waterfall-grafik", figure=wf_fig,
+                              config={"displayModeBar": False}),
                     aciklama_kutusu(
                         f"Yıl 2'den itibaren yıllık sabit maliyet: {tl(yr2_yillik_maliyet)} "
                         f"(OPEX {tl(opex_yillik)} + bakım mühendisi {tl(bakim_muhendis)}). "
@@ -402,64 +474,67 @@ def sekme_goster(sekme):
             ], style={"display": "flex", "gap": "24px"}),
 
             bolum_basligi("Personel Maliyeti Detayı — İşveren Yükü Dahil"),
-            html.Table([
-                html.Thead(html.Tr([
-                    html.Th("Rol", style={"textAlign": "left"}),
-                    html.Th("Brüt Maaş", style={"textAlign": "right"}),
-                    html.Th("İşveren Yükü (×1,45)", style={"textAlign": "right"}),
-                    html.Th("Gerçek Yıllık Maliyet", style={"textAlign": "right"}),
-                    html.Th("Süre", style={"textAlign": "right"}),
-                    html.Th("Yıl 1 Toplam", style={"textAlign": "right"}),
-                ], style={"borderBottom": f"1px solid {RENK['border']}",
-                          "color": RENK["soluk"], "fontSize": "11px",
-                          "fontFamily": "monospace", "letterSpacing": "0.06em"})),
-                html.Tbody([
-                    html.Tr([
-                        html.Td(rol),
-                        html.Td(tl(brut), style={"textAlign": "right", "fontFamily": "monospace"}),
-                        html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right", "fontFamily": "monospace"}),
-                        html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right",
-                                 "fontFamily": "monospace", "color": RENK["accent"]}),
-                        html.Td("12 ay", style={"textAlign": "right", "color": RENK["soluk"]}),
-                        html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right",
-                                 "fontFamily": "monospace", "fontWeight": "500"}),
+            indir_butonu("personel-tablo", "personel_maliyeti", tablo_mu=True),
+            html.Div(id="personel-tablo", children=[
+                html.Table([
+                    html.Thead(html.Tr([
+                        html.Th("Rol", style={"textAlign": "left"}),
+                        html.Th("Brüt Maaş", style={"textAlign": "right"}),
+                        html.Th("İşveren Yükü (×1,45)", style={"textAlign": "right"}),
+                        html.Th("Gerçek Yıllık Maliyet", style={"textAlign": "right"}),
+                        html.Th("Süre", style={"textAlign": "right"}),
+                        html.Th("Yıl 1 Toplam", style={"textAlign": "right"}),
                     ], style={"borderBottom": f"1px solid {RENK['border']}",
-                              "fontSize": "13px", "padding": "8px"})
-                    for rol, brut in [
-                        ("Backend Mühendisi — RAG Pipeline", MAAS["backend"]),
-                        ("ML/NLP Mühendisi", MAAS["ml_nlp"]),
-                        ("Frontend / Entegrasyon Mühendisi", MAAS["frontend"]),
-                        ("Proje Yöneticisi", MAAS["pm"]),
-                    ]
-                ] + [
-                    html.Tr([
-                        html.Td("TOPLAM — Yıl 1", style={"fontWeight": "500"}),
-                        html.Td(tl(sum(MAAS.values())), style={"textAlign": "right",
-                                "fontFamily": "monospace"}),
-                        html.Td(""),
-                        html.Td(tl(personel_yr1), style={"textAlign": "right",
-                                "fontFamily": "monospace", "color": RENK["yesil"]}),
-                        html.Td("12 ay"),
-                        html.Td(tl(personel_yr1), style={"textAlign": "right",
-                                "fontFamily": "monospace", "fontWeight": "500",
-                                "color": RENK["yesil"]}),
-                    ], style={"background": RENK["bg2"], "fontSize": "13px"}),
-                    html.Tr([
-                        html.Td("Bakım Mühendisi — Yıl 2+", style={"fontWeight": "500",
-                                "color": RENK["accent"]}),
-                        html.Td(tl(MAAS["backend"]), style={"textAlign": "right",
-                                "fontFamily": "monospace", "color": RENK["soluk"]}),
-                        html.Td(""),
-                        html.Td(tl(bakim_muhendis), style={"textAlign": "right",
-                                "fontFamily": "monospace", "color": RENK["accent"]}),
-                        html.Td("Süresiz", style={"color": RENK["accent"]}),
-                        html.Td(tl(bakim_muhendis) + "/yıl", style={"textAlign": "right",
-                                "fontFamily": "monospace", "fontWeight": "500",
-                                "color": RENK["accent"]}),
-                    ], style={"background": RENK["bg3"], "fontSize": "13px"}),
-                ]),
-            ], style={"width": "100%", "borderCollapse": "collapse",
-                      "fontSize": "13px", "marginBottom": "16px"}),
+                              "color": RENK["soluk"], "fontSize": "11px",
+                              "fontFamily": "monospace", "letterSpacing": "0.06em"})),
+                    html.Tbody([
+                        html.Tr([
+                            html.Td(rol),
+                            html.Td(tl(brut), style={"textAlign": "right", "fontFamily": "monospace"}),
+                            html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right", "fontFamily": "monospace"}),
+                            html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right",
+                                     "fontFamily": "monospace", "color": RENK["accent"]}),
+                            html.Td("12 ay", style={"textAlign": "right", "color": RENK["soluk"]}),
+                            html.Td(tl(brut * YUKUMLULUK), style={"textAlign": "right",
+                                     "fontFamily": "monospace", "fontWeight": "500"}),
+                        ], style={"borderBottom": f"1px solid {RENK['border']}",
+                                  "fontSize": "13px", "padding": "8px"})
+                        for rol, brut in [
+                            ("Backend Mühendisi — RAG Pipeline", MAAS["backend"]),
+                            ("ML/NLP Mühendisi", MAAS["ml_nlp"]),
+                            ("Frontend / Entegrasyon Mühendisi", MAAS["frontend"]),
+                            ("Proje Yöneticisi", MAAS["pm"]),
+                        ]
+                    ] + [
+                        html.Tr([
+                            html.Td("TOPLAM — Yıl 1", style={"fontWeight": "500"}),
+                            html.Td(tl(sum(MAAS.values())), style={"textAlign": "right",
+                                    "fontFamily": "monospace"}),
+                            html.Td(""),
+                            html.Td(tl(personel_yr1), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "color": RENK["yesil"]}),
+                            html.Td("12 ay"),
+                            html.Td(tl(personel_yr1), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "fontWeight": "500",
+                                    "color": RENK["yesil"]}),
+                        ], style={"background": RENK["bg2"], "fontSize": "13px"}),
+                        html.Tr([
+                            html.Td("Bakım Mühendisi — Yıl 2+", style={"fontWeight": "500",
+                                    "color": RENK["accent"]}),
+                            html.Td(tl(MAAS["backend"]), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "color": RENK["soluk"]}),
+                            html.Td(""),
+                            html.Td(tl(bakim_muhendis), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "color": RENK["accent"]}),
+                            html.Td("Süresiz", style={"color": RENK["accent"]}),
+                            html.Td(tl(bakim_muhendis) + "/yıl", style={"textAlign": "right",
+                                    "fontFamily": "monospace", "fontWeight": "500",
+                                    "color": RENK["accent"]}),
+                        ], style={"background": RENK["bg3"], "fontSize": "13px"}),
+                    ]),
+                ], style={"width": "100%", "borderCollapse": "collapse",
+                          "fontSize": "13px", "marginBottom": "16px"}),
+            ], style={"background": RENK["bg"], "padding": "8px 0"}),
 
             aciklama_kutusu(
                 "İşveren yükü dökümü: SGK işveren payı %20,5 + işsizlik sigortası "
@@ -529,71 +604,76 @@ def sekme_goster(sekme):
             ], style={"display": "flex", "gap": "10px", "marginBottom": "28px"}),
 
             bolum_basligi("Değer Kovası Dağılımı"),
-            dcc.Graph(figure=roi_fig, config={"displayModeBar": False}),
+            indir_butonu("roi-grafik", "deger_kovalari"),
+            dcc.Graph(id="roi-grafik", figure=roi_fig,
+                      config={"displayModeBar": False}),
 
             bolum_basligi("Hesaplama Detayları"),
-            html.Table([
-                html.Thead(html.Tr([
-                    html.Th("Değer Kalemi", style={"textAlign": "left"}),
-                    html.Th("Hesaplama Mantığı", style={"textAlign": "left"}),
-                    html.Th("Yıllık Değer", style={"textAlign": "right"}),
-                ], style={"borderBottom": f"1px solid {RENK['border']}",
-                          "color": RENK["soluk"], "fontSize": "11px",
-                          "fontFamily": "monospace"})),
-                html.Tbody([
-                    html.Tr([
-                        html.Td(kalem, style={"fontWeight": "500", "paddingRight": "16px"}),
-                        html.Td(aciklama, style={"color": RENK["soluk"],
-                                                  "fontSize": "12px", "lineHeight": "1.6"}),
-                        html.Td(tl(deger), style={"textAlign": "right",
-                                 "fontFamily": "monospace", "color": RENK["yesil"],
-                                 "fontWeight": "500", "whiteSpace": "nowrap"}),
+            indir_butonu("deger-tablo", "deger_hesaplama", tablo_mu=True),
+            html.Div(id="deger-tablo", children=[
+                html.Table([
+                    html.Thead(html.Tr([
+                        html.Th("Değer Kalemi", style={"textAlign": "left"}),
+                        html.Th("Hesaplama Mantığı", style={"textAlign": "left"}),
+                        html.Th("Yıllık Değer", style={"textAlign": "right"}),
                     ], style={"borderBottom": f"1px solid {RENK['border']}",
-                              "fontSize": "13px", "padding": "10px 0",
-                              "verticalAlign": "top"})
-                    for kalem, aciklama, deger in [
-                        ("Uyum Ekibi Zaman Tasarrufu",
-                         f"8 uyum uzmanı × zamanın %30u rutin sorgulara gidiyor × "
-                         f"%80 otomasyon × {tl(int(uyum_saatlik))}/saat. "
-                         "KT uyum ekibi bu sistemle stratejik vakalara odaklanabilir.",
-                         v_uyum),
-                        ("Ürün Ekipleri Bekleme Kaybı",
-                         f"12 ürün müdürü × ayda 4 sorgu × 12 ay × 4 saat verimlilik kaybı "
-                         f"(2 günlük bekleme) × %80 × {tl(int(pm_saatlik))}/saat. "
-                         "Her geciken cevap bir ürün kararını bloke ediyor.",
-                         v_pm),
-                        ("Şube — Kaçırılan İşlem Marjı",
-                         "400 şube × ayda 1 uyum sorusu = 4.800 sorgu/yıl. "
-                         "Büyük şubelerdeki %20si (960 sorgu) × %5 düşme oranı = 48 kayıp işlem. "
-                         "Ortalama kurumsal finansman ₺2M × %5 banka marjı = ₺100K/işlem.",
-                         v_sube),
-                        ("Ürün Lansmanı Hızlanması",
-                         "5 ürün/yıl, uyum onay süreci 4 haftadan 1 haftaya iniyor → 15 iş günü kazanıldı. "
-                         "İlk ay 300 müşteri × ₺2.000 marj = ₺600K/ay = ₺20K/gün × 15 gün × 5 ürün.",
-                         v_urun),
-                        ("BDDK Para Cezası Riski",
-                         "₺50M ceza maruziyeti. Olay olasılığı: %5 → %0,8. "
-                         "Beklenen değer azaltımı = ₺50M × 4,2 puan. "
-                         "Kaynak: BoE 2023'te İslami bankayı £3,5M cezalandırdı.",
-                         v_bddk_para_cezasi),
-                        ("İtibar Hasarı Önleme",
-                         "Şeriat uyumluluk başarısızlığı katılım bankacılığında "
-                         "orantısız hasar verir — inanç bazlı ürün farklılaştırması erozyon. "
-                         "₺50M tahmini maliyet × olasılık azaltımı 2,6 puan.",
-                         v_itibar),
-                    ]
-                ] + [
-                    html.Tr([
-                        html.Td("TOPLAM YILLIK DEĞER", style={"fontWeight": "500"}),
-                        html.Td("Danışma Komitesi onay mekanizması korunuyor — FiCo sadece rutin sorguları otomatize ediyor.",
-                                style={"color": RENK["soluk"], "fontSize": "12px"}),
-                        html.Td(tl(v_toplam), style={"textAlign": "right",
-                                "fontFamily": "monospace", "color": RENK["yesil"],
-                                "fontWeight": "500", "fontSize": "16px"}),
-                    ], style={"background": RENK["bg2"], "fontSize": "13px",
-                              "borderTop": f"1px solid {RENK['border']}"})
-                ]),
-            ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "16px"}),
+                              "color": RENK["soluk"], "fontSize": "11px",
+                              "fontFamily": "monospace"})),
+                    html.Tbody([
+                        html.Tr([
+                            html.Td(kalem, style={"fontWeight": "500", "paddingRight": "16px"}),
+                            html.Td(aciklama, style={"color": RENK["soluk"],
+                                                      "fontSize": "12px", "lineHeight": "1.6"}),
+                            html.Td(tl(deger), style={"textAlign": "right",
+                                     "fontFamily": "monospace", "color": RENK["yesil"],
+                                     "fontWeight": "500", "whiteSpace": "nowrap"}),
+                        ], style={"borderBottom": f"1px solid {RENK['border']}",
+                                  "fontSize": "13px", "padding": "10px 0",
+                                  "verticalAlign": "top"})
+                        for kalem, aciklama, deger in [
+                            ("Uyum Ekibi Zaman Tasarrufu",
+                             f"8 uyum uzmanı × zamanın %30u rutin sorgulara gidiyor × "
+                             f"%80 otomasyon × {tl(int(uyum_saatlik))}/saat. "
+                             "KT uyum ekibi bu sistemle stratejik vakalara odaklanabilir.",
+                             v_uyum),
+                            ("Ürün Ekipleri Bekleme Kaybı",
+                             f"12 ürün müdürü × ayda 4 sorgu × 12 ay × 4 saat verimlilik kaybı "
+                             f"(2 günlük bekleme) × %80 × {tl(int(pm_saatlik))}/saat. "
+                             "Her geciken cevap bir ürün kararını bloke ediyor.",
+                             v_pm),
+                            ("Şube — Kaçırılan İşlem Marjı",
+                             "400 şube × ayda 1 uyum sorusu = 4.800 sorgu/yıl. "
+                             "Büyük şubelerdeki %20si (960 sorgu) × %5 düşme oranı = 48 kayıp işlem. "
+                             "Ortalama kurumsal finansman ₺2M × %5 banka marjı = ₺100K/işlem.",
+                             v_sube),
+                            ("Ürün Lansmanı Hızlanması",
+                             "5 ürün/yıl, uyum onay süreci 4 haftadan 1 haftaya iniyor → 15 iş günü kazanıldı. "
+                             "İlk ay 300 müşteri × ₺2.000 marj = ₺600K/ay = ₺20K/gün × 15 gün × 5 ürün.",
+                             v_urun),
+                            ("BDDK Para Cezası Riski",
+                             "₺50M ceza maruziyeti. Olay olasılığı: %5 → %0,8. "
+                             "Beklenen değer azaltımı = ₺50M × 4,2 puan. "
+                             "Kaynak: BoE 2023'te İslami bankayı £3,5M cezalandırdı.",
+                             v_bddk_para_cezasi),
+                            ("İtibar Hasarı Önleme",
+                             "Şeriat uyumluluk başarısızlığı katılım bankacılığında "
+                             "orantısız hasar verir — inanç bazlı ürün farklılaştırması erozyon. "
+                             "₺50M tahmini maliyet × olasılık azaltımı 2,6 puan.",
+                             v_itibar),
+                        ]
+                    ] + [
+                        html.Tr([
+                            html.Td("TOPLAM YILLIK DEĞER", style={"fontWeight": "500"}),
+                            html.Td("Danışma Komitesi onay mekanizması korunuyor — FiCo sadece rutin sorguları otomatize ediyor.",
+                                    style={"color": RENK["soluk"], "fontSize": "12px"}),
+                            html.Td(tl(v_toplam), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "color": RENK["yesil"],
+                                    "fontWeight": "500", "fontSize": "16px"}),
+                        ], style={"background": RENK["bg2"], "fontSize": "13px",
+                                  "borderTop": f"1px solid {RENK['border']}"})
+                    ]),
+                ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "16px"}),
+            ], style={"background": RENK["bg"], "padding": "8px 0"}),
 
             aciklama_kutusu(
                 "Temel içgörü: Değer 5 farklı kullanıcı profilinden geliyor — uyum ekibi, ürün ekipleri, "
@@ -611,7 +691,6 @@ def sekme_goster(sekme):
         maliyet_cf = [-q["maliyet"] / 1_000_000 for q in ceyreklik_nakit]
         deger_cf = [q["deger"] / 1_000_000 for q in ceyreklik_nakit]
 
-        # Kümülatif CF grafiği
         geri_odeme_fig = go.Figure()
         geri_odeme_fig.add_trace(go.Bar(
             x=ceyrekler, y=maliyet_cf, name="Maliyet Çıkışı",
@@ -641,7 +720,6 @@ def sekme_goster(sekme):
             height=300, barmode="group",
         )
 
-        # Duyarlılık grafiği
         duy_etiketler = list(duyarlilik_senaryolari.keys())
         duy_npv = [v["npv"] / 1_000_000 for v in duyarlilik_senaryolari.values()]
         duy_renkler = [RENK["yesil"] if v >= 0 else RENK["kirmizi"] for v in duy_npv]
@@ -677,7 +755,6 @@ def sekme_goster(sekme):
                    style={"color": RENK["soluk"], "fontSize": "14px",
                           "marginBottom": "28px"}),
 
-            # Özet kartlar
             html.Div([
                 kart("2 Yıllık NPV @ %45", tl(npv),
                      "Çeyreklik %9,67 iskonto", vurgu=True,
@@ -692,7 +769,6 @@ def sekme_goster(sekme):
                      renk=RENK["yesil"] if net_yillik >= 0 else RENK["kirmizi"]),
             ], style={"display": "flex", "gap": "10px", "marginBottom": "28px"}),
 
-            # İskonto oranı türetimi
             bolum_basligi("İskonto Oranı Türetimi — Fisher Denklemi"),
             html.Div([
                 html.Div([
@@ -746,76 +822,79 @@ def sekme_goster(sekme):
                 ], style={"flex": "1"}),
             ], style={"display": "flex", "gap": "20px", "marginBottom": "24px"}),
 
-            # Çeyreklik tablo
             bolum_basligi("Çeyreklik Nakit Akışı Tablosu"),
-            html.Table([
-                html.Thead(html.Tr([
-                    html.Th(h, style={
-                        "textAlign": "right" if i > 1 else "left",
-                        "color": RENK["soluk"], "fontSize": "10px",
-                        "fontFamily": "monospace", "letterSpacing": "0.06em",
-                        "padding": "6px 10px",
-                        "borderBottom": f"1px solid {RENK['border']}",
-                    })
-                    for i, h in enumerate([
-                        "Çeyrek", "Faz", "Benimseme",
-                        "Maliyet (₺)", "Değer (₺)", "Net CF (₺)",
-                        "İsk. Faktörü", "Bugünkü Değer (₺)", "Kümülatif NPV (₺)"
-                    ])
-                ])),
-                html.Tbody([
-                    html.Tr([
-                        html.Td(q["ceyrek"], style={"fontFamily": "monospace",
+            indir_butonu("ceyreklik-tablo", "ceyreklik_nakit_akisi", tablo_mu=True),
+            html.Div(id="ceyreklik-tablo", children=[
+                html.Table([
+                    html.Thead(html.Tr([
+                        html.Th(h, style={
+                            "textAlign": "right" if i > 1 else "left",
+                            "color": RENK["soluk"], "fontSize": "10px",
+                            "fontFamily": "monospace", "letterSpacing": "0.06em",
+                            "padding": "6px 10px",
+                            "borderBottom": f"1px solid {RENK['border']}",
+                        })
+                        for i, h in enumerate([
+                            "Çeyrek", "Faz", "Benimseme",
+                            "Maliyet (₺)", "Değer (₺)", "Net CF (₺)",
+                            "İsk. Faktörü", "Bugünkü Değer (₺)", "Kümülatif NPV (₺)"
+                        ])
+                    ])),
+                    html.Tbody([
+                        html.Tr([
+                            html.Td(q["ceyrek"], style={"fontFamily": "monospace",
+                                    "fontSize": "12px", "padding": "8px 10px",
+                                    "whiteSpace": "nowrap"}),
+                            html.Td(q["faz"], style={"color": RENK["soluk"],
+                                    "fontSize": "11px", "padding": "8px 10px"}),
+                            html.Td(
+                                f"%{int(q['benimseme']*100)}" if q["benimseme"] > 0 else "—",
+                                style={"textAlign": "right", "fontFamily": "monospace",
+                                       "fontSize": "12px", "padding": "8px 10px",
+                                       "color": RENK["accent"] if q["benimseme"] > 0 else RENK["soluk"]}
+                            ),
+                            html.Td(tl(-q["maliyet"]), style={"textAlign": "right",
+                                    "fontFamily": "monospace", "fontSize": "12px",
+                                    "padding": "8px 10px", "color": RENK["kirmizi"]}),
+                            html.Td(
+                                tl(q["deger"]) if q["deger"] > 0 else "—",
+                                style={"textAlign": "right", "fontFamily": "monospace",
+                                       "fontSize": "12px", "padding": "8px 10px",
+                                       "color": RENK["yesil"] if q["deger"] > 0 else RENK["soluk"]}
+                            ),
+                            html.Td(tl(q["net"]), style={
+                                "textAlign": "right", "fontFamily": "monospace",
                                 "fontSize": "12px", "padding": "8px 10px",
-                                "whiteSpace": "nowrap"}),
-                        html.Td(q["faz"], style={"color": RENK["soluk"],
-                                "fontSize": "11px", "padding": "8px 10px"}),
-                        html.Td(
-                            f"%{int(q['benimseme']*100)}" if q["benimseme"] > 0 else "—",
-                            style={"textAlign": "right", "fontFamily": "monospace",
-                                   "fontSize": "12px", "padding": "8px 10px",
-                                   "color": RENK["accent"] if q["benimseme"] > 0 else RENK["soluk"]}
-                        ),
-                        html.Td(tl(-q["maliyet"]), style={"textAlign": "right",
-                                "fontFamily": "monospace", "fontSize": "12px",
-                                "padding": "8px 10px", "color": RENK["kirmizi"]}),
-                        html.Td(
-                            tl(q["deger"]) if q["deger"] > 0 else "—",
-                            style={"textAlign": "right", "fontFamily": "monospace",
-                                   "fontSize": "12px", "padding": "8px 10px",
-                                   "color": RENK["yesil"] if q["deger"] > 0 else RENK["soluk"]}
-                        ),
-                        html.Td(tl(q["net"]), style={
-                            "textAlign": "right", "fontFamily": "monospace",
-                            "fontSize": "12px", "padding": "8px 10px",
-                            "color": RENK["yesil"] if q["net"] >= 0 else RENK["kirmizi"],
-                            "fontWeight": "500",
-                        }),
-                        html.Td(f"{q['df']:.4f}", style={"textAlign": "right",
-                                "fontFamily": "monospace", "fontSize": "11px",
-                                "padding": "8px 10px", "color": RENK["soluk"]}),
-                        html.Td(tl(q["pv"]), style={
-                            "textAlign": "right", "fontFamily": "monospace",
-                            "fontSize": "12px", "padding": "8px 10px",
-                            "color": RENK["yesil"] if q["pv"] >= 0 else RENK["kirmizi"],
-                        }),
-                        html.Td(tl(q["kum_npv"]), style={
-                            "textAlign": "right", "fontFamily": "monospace",
-                            "fontSize": "12px", "padding": "8px 10px",
-                            "color": RENK["yesil"] if q["kum_npv"] >= 0 else RENK["kirmizi"],
-                            "fontWeight": "500",
-                        }),
-                    ], style={
-                        "borderBottom": f"1px solid {RENK['border']}",
-                        "background": RENK["bg2"] if q["benimseme"] == 0 else RENK["bg"],
-                    })
-                    for q in ceyreklik_nakit
-                ]),
-            ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "24px"}),
+                                "color": RENK["yesil"] if q["net"] >= 0 else RENK["kirmizi"],
+                                "fontWeight": "500",
+                            }),
+                            html.Td(f"{q['df']:.4f}", style={"textAlign": "right",
+                                    "fontFamily": "monospace", "fontSize": "11px",
+                                    "padding": "8px 10px", "color": RENK["soluk"]}),
+                            html.Td(tl(q["pv"]), style={
+                                "textAlign": "right", "fontFamily": "monospace",
+                                "fontSize": "12px", "padding": "8px 10px",
+                                "color": RENK["yesil"] if q["pv"] >= 0 else RENK["kirmizi"],
+                            }),
+                            html.Td(tl(q["kum_npv"]), style={
+                                "textAlign": "right", "fontFamily": "monospace",
+                                "fontSize": "12px", "padding": "8px 10px",
+                                "color": RENK["yesil"] if q["kum_npv"] >= 0 else RENK["kirmizi"],
+                                "fontWeight": "500",
+                            }),
+                        ], style={
+                            "borderBottom": f"1px solid {RENK['border']}",
+                            "background": RENK["bg2"] if q["benimseme"] == 0 else RENK["bg"],
+                        })
+                        for q in ceyreklik_nakit
+                    ]),
+                ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "0"}),
+            ], style={"background": RENK["bg"], "padding": "8px 0", "marginBottom": "24px"}),
 
-            # Geri ödeme eğrisi
             bolum_basligi("Geri Ödeme Eğrisi — Kümülatif Nakit Akışı (₺M)"),
-            dcc.Graph(figure=geri_odeme_fig, config={"displayModeBar": False}),
+            indir_butonu("geri-odeme-grafik", "geri_odeme_egrisi"),
+            dcc.Graph(id="geri-odeme-grafik", figure=geri_odeme_fig,
+                      config={"displayModeBar": False}),
 
             html.Div([
                 html.Span(
@@ -833,60 +912,64 @@ def sekme_goster(sekme):
                       "border": f"1px solid {RENK['border']}",
                       "marginBottom": "24px", "marginTop": "12px"}),
 
-            # Duyarlılık analizi
             bolum_basligi("Duyarlılık Analizi — Değer Varsayımları Değişirse Ne Olur?"),
-            dcc.Graph(figure=duy_fig, config={"displayModeBar": False}),
+            indir_butonu("duyarlilik-grafik", "duyarlilik_analizi"),
+            dcc.Graph(id="duyarlilik-grafik", figure=duy_fig,
+                      config={"displayModeBar": False}),
 
-            html.Table([
-                html.Thead(html.Tr([
-                    html.Th(h, style={
-                        "textAlign": "right" if i > 0 else "left",
-                        "color": RENK["soluk"], "fontSize": "10px",
-                        "fontFamily": "monospace", "letterSpacing": "0.06em",
-                        "padding": "6px 10px",
-                        "borderBottom": f"1px solid {RENK['border']}",
-                    })
-                    for i, h in enumerate(["Senaryo", "2Y NPV @ %45",
-                                           "Geri Ödeme", "Net Yıllık Fayda", "Karar"])
-                ])),
-                html.Tbody([
-                    html.Tr([
-                        html.Td(senaryo, style={
-                            "fontWeight": "500" if "Baz" in senaryo else "400",
-                            "padding": "8px 10px", "fontSize": "13px",
-                        }),
-                        html.Td(tl(vals["npv"]), style={
-                            "textAlign": "right", "fontFamily": "monospace",
-                            "fontSize": "13px", "padding": "8px 10px",
-                            "color": RENK["yesil"] if vals["npv"] >= 0 else RENK["kirmizi"],
-                            "fontWeight": "500",
-                        }),
-                        html.Td(
-                            f"Ay {vals['geri_odeme']}" if vals["geri_odeme"] else "> 24 Ay",
-                            style={"textAlign": "right", "fontFamily": "monospace",
-                                   "fontSize": "13px", "padding": "8px 10px",
-                                   "color": RENK["metin"] if vals["geri_odeme"] else RENK["kirmizi"]}
-                        ),
-                        html.Td(tl(vals["net_yillik"]), style={
-                            "textAlign": "right", "fontFamily": "monospace",
-                            "fontSize": "13px", "padding": "8px 10px",
-                            "color": RENK["yesil"] if vals["net_yillik"] >= 0 else RENK["kirmizi"],
-                        }),
-                        html.Td(
-                            "✓ Devam Et" if vals["npv"] >= 0 else "✗ Yeniden Değerlendir",
-                            style={
-                                "textAlign": "right", "fontSize": "12px",
-                                "padding": "8px 10px", "fontFamily": "monospace",
+            indir_butonu("duyarlilik-tablo", "duyarlilik_tablo", tablo_mu=True),
+            html.Div(id="duyarlilik-tablo", children=[
+                html.Table([
+                    html.Thead(html.Tr([
+                        html.Th(h, style={
+                            "textAlign": "right" if i > 0 else "left",
+                            "color": RENK["soluk"], "fontSize": "10px",
+                            "fontFamily": "monospace", "letterSpacing": "0.06em",
+                            "padding": "6px 10px",
+                            "borderBottom": f"1px solid {RENK['border']}",
+                        })
+                        for i, h in enumerate(["Senaryo", "2Y NPV @ %45",
+                                               "Geri Ödeme", "Net Yıllık Fayda", "Karar"])
+                    ])),
+                    html.Tbody([
+                        html.Tr([
+                            html.Td(senaryo, style={
+                                "fontWeight": "500" if "Baz" in senaryo else "400",
+                                "padding": "8px 10px", "fontSize": "13px",
+                            }),
+                            html.Td(tl(vals["npv"]), style={
+                                "textAlign": "right", "fontFamily": "monospace",
+                                "fontSize": "13px", "padding": "8px 10px",
                                 "color": RENK["yesil"] if vals["npv"] >= 0 else RENK["kirmizi"],
-                            }
-                        ),
-                    ], style={
-                        "borderBottom": f"1px solid {RENK['border']}",
-                        "background": RENK["bg2"] if "Baz" in senaryo else RENK["bg"],
-                    })
-                    for senaryo, vals in duyarlilik_senaryolari.items()
-                ]),
-            ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "16px"}),
+                                "fontWeight": "500",
+                            }),
+                            html.Td(
+                                f"Ay {vals['geri_odeme']}" if vals["geri_odeme"] else "> 24 Ay",
+                                style={"textAlign": "right", "fontFamily": "monospace",
+                                       "fontSize": "13px", "padding": "8px 10px",
+                                       "color": RENK["metin"] if vals["geri_odeme"] else RENK["kirmizi"]}
+                            ),
+                            html.Td(tl(vals["net_yillik"]), style={
+                                "textAlign": "right", "fontFamily": "monospace",
+                                "fontSize": "13px", "padding": "8px 10px",
+                                "color": RENK["yesil"] if vals["net_yillik"] >= 0 else RENK["kirmizi"],
+                            }),
+                            html.Td(
+                                "✓ Devam Et" if vals["npv"] >= 0 else "✗ Yeniden Değerlendir",
+                                style={
+                                    "textAlign": "right", "fontSize": "12px",
+                                    "padding": "8px 10px", "fontFamily": "monospace",
+                                    "color": RENK["yesil"] if vals["npv"] >= 0 else RENK["kirmizi"],
+                                }
+                            ),
+                        ], style={
+                            "borderBottom": f"1px solid {RENK['border']}",
+                            "background": RENK["bg2"] if "Baz" in senaryo else RENK["bg"],
+                        })
+                        for senaryo, vals in duyarlilik_senaryolari.items()
+                    ]),
+                ], style={"width": "100%", "borderCollapse": "collapse", "marginBottom": "0"}),
+            ], style={"background": RENK["bg"], "padding": "8px 0", "marginBottom": "16px"}),
 
             aciklama_kutusu(
                 "Duyarlılık yorumu: Değer varsayımları %30 hata payıyla bile NPV pozitif "
